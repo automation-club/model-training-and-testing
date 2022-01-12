@@ -1,5 +1,6 @@
 from numpy import load
 from torch.functional import Tensor
+import labelbox as lb
 
 from models import *
 from utils.utils import *
@@ -12,6 +13,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from torch.autograd import Variable
 
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from PIL import Image
@@ -21,40 +23,69 @@ def detect_img(img):
     imw = round(img.size[0] * ratio)
     imh = round(img.size[1] * ratio)
     img_transforms = transforms.Compose([
-        transforms.Resize((imh,imw)),
-        transforms.Pad((
-            max(int((imh-imw)/2),0), max(int((imw-imh)/2),0), max(int((imh-imw)/2),0),max(int((imw-imh)/2),0)), (128,128,128,1)),
+        transforms.Resize((img_size,img_size)),
+        # transforms.Pad((
+        #     max(int((imh-imw)/2),0), max(int((imw-imh)/2),0), max(int((imh-imw)/2),0),max(int((imw-imh)/2),0)), (128,128,128)),
         transforms.ToTensor(),            
     ])
 
     image_tensor = img_transforms(img).float()
-    return(image_tensor)
+    image_tensor = image_tensor.unsqueeze(0)
 
+    input_img = Variable(image_tensor.type(Tensor))
 
+    with torch.no_grad():
+        detections = model(input_img)
+        detections = non_max_suppression(detections, 80, conf_thres, nms_thres)
+        
+    return(detections)
+
+def generate_dataset_from_labelbox(api_key, project_id):
+
+    # LabelBox credentials
+    lb_client = lb.Client(api_key=api_key)
+    lb_project = lb_client.get_project(project_id=project_id)
+
+    # Export frames & X,Y point coordinates from project
+    labels = lb_project.video_label_generator()
+    labels = next(labels)
+    frames = labels.data.value
+    xycoords = labels.annotations
+
+    # Convert frames to PyTorch Tensor
+    frames_list = []
+    for idx, frame in frames:
+        frames_list.append(frame)
+    
+    test = np.array(frames_list)
+    print(test.shape)
+    
 if __name__ == "__main__":
 
-    config_path = "config/yolov3.cfg"
-    weights_path = "config/yolov3.weights"
-    class_path = "config/coco.names"
+    # Configuring Dataset
+    LABELBOX_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJja3k0MG9pNjkyZjYwMHplcGdlM3o2anpyIiwib3JnYW5pemF0aW9uSWQiOiJja3k0MG9ocXEyZjV6MHplcGVsYjk1N3YyIiwiYXBpS2V5SWQiOiJja3lieXAxdnUwOThnMHpieDNycmdjMThiIiwic2VjcmV0IjoiY2M0YTUzYTA2MmYxMDM4NmY1MWJiNTExM2Q1YTgxYTQiLCJpYXQiOjE2NDIwMTcyODUsImV4cCI6MjI3MzE2OTI4NX0.kXsSSgzrAeFdYdryYgzdok6eiyHydLA88ZP_Pd7EnuQ"
+    LABELBOX_PROJECT_ID = "cky4nw7aaohqu0zdh6d75gobs"
+    
+    frames_tensor, coords_tensor = \
+        generate_dataset_from_labelbox(api_key=LABELBOX_API_KEY, project_id=LABELBOX_PROJECT_ID)
+    
+    # config_path = "config/yolov3.cfg"
+    # weights_path = "config/yolov3.weights"
+    # class_path = "config/coco.names"
 
-    img_size = 418
-    confidence_thres = 0.8
-    nms_thres = None
+    # img_size = 416
+    # conf_thres = 0.3
+    # nms_thres = None
 
-    # Load Models and Weights
-    model = Darknet(config_path=config_path, img_size=img_size)
-    model.load_weights(weights_path=weights_path)
-    model.eval()    
-    classes = load_classes(class_path)
+    # # Load Models and Weights
+    # model = Darknet(config_path=config_path, img_size=img_size)
+    # model.load_weights(weights_path=weights_path)
+    # model.eval()    
+    # classes = load_classes(class_path)
 
-    tensor = torch.FloatTensor
+    # tensor = torch.FloatTensor
 
-    img_path = "Screenshot from 2022-01-11 23-31-51.png"
-    img = Image.open(img_path)
+    # img_path = "Screenshot from 2022-01-11 23-31-51.png"
+    # img = Image.open(img_path).convert('RGB')
 
-    sus = detect_img(img)
-
-    #img.show()
-    print(sus.shape)    
-    plt.imshow(sus.permute(1,2,0))
-    plt.show()
+    # sus = detect_img(img)
