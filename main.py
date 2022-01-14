@@ -1,4 +1,5 @@
-from numpy import load
+from numpy import dtype, load
+from requests.exceptions import ProxyError
 from torch.functional import Tensor
 import labelbox as lb
 
@@ -17,6 +18,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from PIL import Image
+import psutil
+import pandas as pd
+import urllib
+
+
+def download_video_data(api_key, project_id):
+    lb_client = lb.Client(api_key=api_key)
+    lb_project = lb_client.get_project(project_id=project_id)
+    
+    labels = lb_project.video_label_generator()
+    labels = next(labels)
+    
+    video_data_url = labels.data['url']
+    urllib.urlretrieve(video_data_url, '/datasets/test-video.mp4')
 
 def detect_img(img):
     ratio = min(img_size/img.size[0], img_size/img.size[1])
@@ -53,9 +68,19 @@ def generate_dataset_from_labelbox(api_key, project_id):
     xycoords = labels.annotations
 
     # Convert frames to PyTorch Tensor
-    frames_list = []
-    for idx, frame in frames:
-        frames_list.append(frame)
+    frames_buffer = pd.DataFrame() 
+    # frames_tensor = torch.Tensor()
+    print(np.ndarray(frame for idx, frame in frames))
+    test = torch.from_numpy(np.fromiter((frame for idx, frame in frames), float))
+    print(test)
+    # for idx, frame in frames:
+    #     print(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2)
+    #     print(idx)
+    #     frames_buffer.append(frame)
+    #     # if idx % 50:
+        #     torch.cat(frames_tensor, torch.Tensor(frames_buffer))
+        #     frames_buffer = []
+            
     
     test = np.array(frames_list)
     print(test.shape)
@@ -66,8 +91,10 @@ if __name__ == "__main__":
     LABELBOX_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJja3k0MG9pNjkyZjYwMHplcGdlM3o2anpyIiwib3JnYW5pemF0aW9uSWQiOiJja3k0MG9ocXEyZjV6MHplcGVsYjk1N3YyIiwiYXBpS2V5SWQiOiJja3lieXAxdnUwOThnMHpieDNycmdjMThiIiwic2VjcmV0IjoiY2M0YTUzYTA2MmYxMDM4NmY1MWJiNTExM2Q1YTgxYTQiLCJpYXQiOjE2NDIwMTcyODUsImV4cCI6MjI3MzE2OTI4NX0.kXsSSgzrAeFdYdryYgzdok6eiyHydLA88ZP_Pd7EnuQ"
     LABELBOX_PROJECT_ID = "cky4nw7aaohqu0zdh6d75gobs"
     
-    frames_tensor, coords_tensor = \
-        generate_dataset_from_labelbox(api_key=LABELBOX_API_KEY, project_id=LABELBOX_PROJECT_ID)
+    download_video_data(api_key=LABELBOX_API_KEY, project_id=LABELBOX_PROJECT_ID)
+    
+    # frames_tensor, coords_tensor = \
+    #     generate_dataset_from_labelbox(api_key=LABELBOX_API_KEY, project_id=LABELBOX_PROJECT_ID)
     
     # config_path = "config/yolov3.cfg"
     # weights_path = "config/yolov3.weights"
