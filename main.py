@@ -1,9 +1,12 @@
+from __future__ import annotations
+from pydoc import resolve
 from sqlite3 import DatabaseError
 from VideoFrameDataset import VideoFrameDataset
 
 import torch
 import labelbox as lb
-import os, requests
+from pathlib import Path
+import requests
 import torchvision
 
 
@@ -20,20 +23,20 @@ def access_labelbox_project(api_key, project_id):
     return labelbox_project
     
 
-def download_video_data(labelbox_project, save_path, file_name):
+def download_video_data(labelbox_project, save_path):
 
     # Download Video Data
     video_data_url = labelbox_project.data.url
     request = requests.get(video_data_url, stream=True)
-    save_path = os.path.join(save_path, file_name+".mp4")
     with open(save_path, "wb") as video_file:
         for chunk in request.iter_content(chunk_size=10240):
             if chunk:
                 video_file.write(chunk)
 
 
-def create_annotations_file(annotations, save_path, file_name):
-    print(sus)
+def fetch_annotations(labelbox_project):
+
+    return labelbox_project.annotations
     
 
 
@@ -69,22 +72,19 @@ def create_annotations_file(annotations, save_path, file_name):
     
 if __name__ == "__main__":
 
-    # CONFIGURABLE
-    LABELBOX_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJja3k0MG9pNjkyZjYwMHplcGdlM3o2anpyIiwib3JnYW5pemF0aW9uSWQiOiJja3k0MG9ocXEyZjV6MHplcGVsYjk1N3YyIiwiYXBpS2V5SWQiOiJja3lieXAxdnUwOThnMHpieDNycmdjMThiIiwic2VjcmV0IjoiY2M0YTUzYTA2MmYxMDM4NmY1MWJiNTExM2Q1YTgxYTQiLCJpYXQiOjE2NDIwMTcyODUsImV4cCI6MjI3MzE2OTI4NX0.kXsSSgzrAeFdYdryYgzdok6eiyHydLA88ZP_Pd7EnuQ"
-    LABELBOX_PROJECT_ID = "cky4nw7aaohqu0zdh6d75gobs"
-    DATASET_PATH = "./datasets"
-    VIDEO_DATA_FILE_NAME = "test-vid"
-    ANNOTATIONS_FILE_NAME = "test-annotations"
-    
+        
+    # Grabs video and annotation data from Labelbox
     labelbox_project = access_labelbox_project(api_key=LABELBOX_API_KEY, project_id=LABELBOX_PROJECT_ID)
+    annotations = fetch_annotations(labelbox_project)
+    print(annotations)
+    # download_video_data(labelbox_project=labelbox_project, save_path=(DATASET_PATH/VIDEO_DATA_FILE_NAME).resolve())
 
-    # download_video_data(labelbox_project=labelbox_project, save_path=DATASET_PATH, file_name=VIDEO_DATA_FILE_NAME)
+    # video_dataset = VideoFrameDataset(
+    #     root_path=(DATASET_PATH).resolve(),
+    #     annotationfile_path=(DATASET_PATH/ANNOTATIONS_FILE_NAME).resolve(),
+    #     num_segments=1,
+    #     frames_per_segment=1,
+    # )
 
-    print(os.path.join(DATASET_PATH, VIDEO_DATA_FILE_NAME+".mp4"))
-    video_dataset = VideoFrameDataset(
-        root_path=os.path.join(DATASET_PATH, VIDEO_DATA_FILE_NAME+".mp4"),
-        annotationfile_path=os.path.join(DATASET_PATH, ANNOTATIONS_FILE_NAME+".txt"),
-        num_segments=3,
-        frames_per_segment=1,
-    )
+
     # TODO: Split video into directory with frames to annotate and create dataset
