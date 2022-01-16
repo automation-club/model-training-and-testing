@@ -68,14 +68,13 @@ if __name__ == "__main__":
         mode="include_empty_annotation_frames",
     )
 
-    frames = torchvision.io.read_video(
-        filename=config.VIDEO_PATH,
-        # start_pts=0,
-        # end_pts=1000,
-    )
-    print(frames[0].shape)
+    one = test.__getitem__()
+    two = test.__getitem__()
+    three = test.__getitem__()
 
-    # print(type(test.__getitem__()))
-    # print(test.__getitem__()[1].shape)
+    print(one[0].shape)
+    print(two[0].shape)
+    print(three[0].shape)
 
-    # cv2.imshow('win', test.__getitem__()[0].numpy())
+    print(one[0][0].equal(two[0][0]))
+    print(two[0][128].equal(three[0][0]))

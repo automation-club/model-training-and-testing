@@ -31,8 +31,9 @@ class VideoDataset(Dataset):
         if self.mode == "include_empty_annotation_frames":
             frames = torchvision.io.read_video(
                 filename=self.video_path,
-                start_pts=self.start_frame,
-                end_pts=self.start_frame+self.frames_per_batch,
+                start_pts=self.start_frame/60.0,
+                end_pts=(self.start_frame+self.frames_per_batch)/60.0,
+                pts_unit="sec",
             )
             
             return frames
