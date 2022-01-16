@@ -37,7 +37,7 @@ class VideoDataset(Dataset):
                 pts_unit="sec",
             )
 
-            annotations_tensor = torch.from_numpy(self.annotations)
+            annotations_tensor = torch.from_numpy(self.annotations[self.start_frame:self.start_frame+self.frames_per_batch])        
 
             self.start_frame += self.frames_per_batch
 

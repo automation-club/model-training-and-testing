@@ -48,8 +48,8 @@ def fetch_annotations(labelbox_project, video_file):
     # Annotations array format - (frames, (present, x, y))
     annotations_array = np.zeros(shape=(frame_count, 3)) 
     annotations = labelbox_project.annotations
-    for idx, annotation in enumerate(annotations):
-        annotations_array[idx] = np.array([1, annotation.value.x, annotation.value.y])
+    for annotation in annotations:
+        annotations_array[annotation.frame] = np.array([1, annotation.value.x, annotation.value.y])
     # print(type(labelbox_project.annotations[0]))
     return annotations_array
     
@@ -68,12 +68,27 @@ if __name__ == "__main__":
         mode="include_empty_annotation_frames",
     )
 
-    one = test.__getitem__()  
+    # one = test.__getitem__()  
+    # two = test.__getitem__()
 
-    print(one[0].shape)
-    print(one[1].shape)
+    for i in range(5):
+        data = test.__getitem__()
+        frames = data[0].numpy()
+        annotations = data[1]
+        print(annotations[0][1].item())
+        for idx, frame in enumerate(frames):
+            print((annotations[idx][1].item(), annotations[idx][2].item()))
+            image_with_annotation = cv2.circle(
+                frame,
+                (int(annotations[idx][1].item()), int(annotations[idx][2].item())), 
+                radius=10,
+                color=(255, 0, 0),
+                thickness=-1
+            )
 
+            cv2.imshow("pinball", cv2.cvtColor(image_with_annotation, cv2.COLOR_BGR2RGB))
+            cv2.waitKey(1)
 
-
+       
     x = [1, 2 , 3, 4]
     print(x[:-1])
