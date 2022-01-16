@@ -1,6 +1,10 @@
+
 from __future__ import annotations
+from cProfile import label
+from distutils.util import subst_vars
 from pydoc import resolve
 from sqlite3 import DatabaseError
+from VideoDataset import VideoDataset
 from VideoFrameDataset import VideoFrameDataset
 
 import torch
@@ -8,7 +12,10 @@ import labelbox as lb
 from pathlib import Path
 import requests
 import torchvision
+import cv2
+import numpy as np
 
+import config
 
 def access_labelbox_project(api_key, project_id):
     
@@ -19,7 +26,7 @@ def access_labelbox_project(api_key, project_id):
     # Retrieve Video Label generator
     labelbox_project = lb_project.video_label_generator()
     labelbox_project = next(labelbox_project)
-
+     
     return labelbox_project
     
 
@@ -34,57 +41,41 @@ def download_video_data(labelbox_project, save_path):
                 video_file.write(chunk)
 
 
-def fetch_annotations(labelbox_project):
-
-    return labelbox_project.annotations
+def fetch_annotations(labelbox_project, video_file):
+    cap = cv2.VideoCapture(video_file)
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    
+    # Annotations array format - (frames, (present, x, y))
+    annotations_array = np.zeros(shape=(frame_count, 3)) 
+    annotations = labelbox_project.annotations
+    for idx, annotation in enumerate(annotations):
+        annotations_array[idx] = np.array([1, annotation.value.x, annotation.value.y])
+    # print(type(labelbox_project.annotations[0]))
+    return annotations_array
     
 
-
-# def generate_dataset_from_labelbox(api_key, project_id):
-
-#     # LabelBox credentials
-#     lb_client = lb.Client(api_key=api_key)
-#     lb_project = lb_client.get_project(project_id=project_id)
-
-#     # Export frames & X,Y point coordinates from project
-#     labels = lb_project.video_labelbox_project()
-#     labels = next(labels)
-#     frames = labels.data.value
-#     xycoords = labels.annotations
-
-#     # Convert frames to PyTorch Tensor
-#     frames_buffer = pd.DataFrame() 
-#     # frames_tensor = torch.Tensor()
-#     print(np.ndarray(frame for idx, frame in frames))
-#     test = torch.from_numpy(np.fromiter((frame for idx, frame in frames), float))
-#     print(test)
-#     # for idx, frame in frames:
-#     #     print(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2)
-#     #     print(idx)
-#     #     frames_buffer.append(frame)
-#     #     # if idx % 50:
-#         #     torch.cat(frames_tensor, torch.Tensor(frames_buffer))
-#         #     frames_buffer = []
-            
-    
-#     test = np.array(frames_list)
-#     print(test.shape)
-    
 if __name__ == "__main__":
-
-        
     # Grabs video and annotation data from Labelbox
-    labelbox_project = access_labelbox_project(api_key=LABELBOX_API_KEY, project_id=LABELBOX_PROJECT_ID)
-    annotations = fetch_annotations(labelbox_project)
-    print(annotations)
+    labelbox_project = access_labelbox_project(api_key=config.LABELBOX_API_KEY, project_id=config.LABELBOX_PROJECT_ID)
+    annotations = fetch_annotations(labelbox_project, config.VIDEO_PATH)
+    
+
     # download_video_data(labelbox_project=labelbox_project, save_path=(DATASET_PATH/VIDEO_DATA_FILE_NAME).resolve())
 
-    # video_dataset = VideoFrameDataset(
-    #     root_path=(DATASET_PATH).resolve(),
-    #     annotationfile_path=(DATASET_PATH/ANNOTATIONS_FILE_NAME).resolve(),
-    #     num_segments=1,
-    #     frames_per_segment=1,
-    # )
+    test = VideoDataset(
+        video_path=config.VIDEO_PATH,
+        annotations=annotations,
+        mode="include_empty_annotation_frames",
+    )
 
+    frames = torchvision.io.read_video(
+        filename=config.VIDEO_PATH,
+        # start_pts=0,
+        # end_pts=1000,
+    )
+    print(frames[0].shape)
 
-    # TODO: Split video into directory with frames to annotate and create dataset
+    # print(type(test.__getitem__()))
+    # print(test.__getitem__()[1].shape)
+
+    # cv2.imshow('win', test.__getitem__()[0].numpy())

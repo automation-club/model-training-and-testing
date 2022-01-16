@@ -23,18 +23,19 @@ class VideoDataset(Dataset):
     
     def __getitem__(self):
 
-        frames = torchvision.io.read_video(
-            filename=self.video_path,
-            start_pts=self.start_frame,
-            end_pts=self.start_frame+self.frames_per_batch,
-        )
-
         if self.mode == "skip_empty_annotation_frames":
             # iterate through [frames_per_batch] frames and discover all the frames you need.
             # Input all needed frames to make Tensor
             pass
         
-        if self.mode == "include_empty_annotation_frame":
-            pass
+        if self.mode == "include_empty_annotation_frames":
+            frames = torchvision.io.read_video(
+                filename=self.video_path,
+                start_pts=self.start_frame,
+                end_pts=self.start_frame+self.frames_per_batch,
+            )
+            
+            return frames
 
-         
+    def restructure_annotations(self, annotations):
+        pass

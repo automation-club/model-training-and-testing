@@ -9,4 +9,5 @@ DATASET_PATH = Path("./datasets")
 VIDEO_DATA_FILE_NAME = "test-vid.mp4"
 ANNOTATIONS_FILE_NAME = "test-annotations.txt"
 
-#d
+VIDEO_PATH = str((DATASET_PATH/VIDEO_DATA_FILE_NAME).resolve())
+# 
