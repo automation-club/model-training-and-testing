@@ -68,13 +68,12 @@ if __name__ == "__main__":
         mode="include_empty_annotation_frames",
     )
 
-    one = test.__getitem__()
-    two = test.__getitem__()
-    three = test.__getitem__()
+    one = test.__getitem__()  
 
     print(one[0].shape)
-    print(two[0].shape)
-    print(three[0].shape)
+    print(one[1].shape)
 
-    print(one[0][0].equal(two[0][0]))
-    print(two[0][128].equal(three[0][0]))
+
+
+    x = [1, 2 , 3, 4]
+    print(x[:-1])

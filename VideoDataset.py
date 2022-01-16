@@ -29,14 +29,19 @@ class VideoDataset(Dataset):
             pass
         
         if self.mode == "include_empty_annotation_frames":
+
             frames = torchvision.io.read_video(
                 filename=self.video_path,
                 start_pts=self.start_frame/60.0,
                 end_pts=(self.start_frame+self.frames_per_batch)/60.0,
                 pts_unit="sec",
             )
-            
-            return frames
+
+            annotations_tensor = torch.from_numpy(self.annotations)
+
+            self.start_frame += self.frames_per_batch
+
+            return (frames[0][:-1], annotations_tensor)
 
     def restructure_annotations(self, annotations):
         pass
