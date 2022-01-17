@@ -2,18 +2,19 @@
 from __future__ import annotations
 from cProfile import label
 from distutils.util import subst_vars
+from inspect import isclass
 from pydoc import resolve
 from sqlite3 import DatabaseError
 from VideoDataset import VideoDataset
 from VideoFrameDataset import VideoFrameDataset
+from torch.utils.data import DataLoader
+from itertools import islice
 
-import torch
 import labelbox as lb
 from pathlib import Path
-import requests
-import torchvision
-import cv2
 import numpy as np
+import requests
+import cv2
 
 import config
 
@@ -57,38 +58,33 @@ def fetch_annotations(labelbox_project, video_file):
 if __name__ == "__main__":
     # Grabs video and annotation data from Labelbox
     labelbox_project = access_labelbox_project(api_key=config.LABELBOX_API_KEY, project_id=config.LABELBOX_PROJECT_ID)
+    download_video_data(labelbox_project=labelbox_project, save_path=config.VIDEO_PATH)
     annotations = fetch_annotations(labelbox_project, config.VIDEO_PATH)
-    
 
-    # download_video_data(labelbox_project=labelbox_project, save_path=(DATASET_PATH/VIDEO_DATA_FILE_NAME).resolve())
-
-    test = VideoDataset(
+    video_dataset = VideoDataset(
         video_path=config.VIDEO_PATH,
-        annotations=annotations,
-        mode="include_empty_annotation_frames",
+        annotations_array=annotations,
     )
 
-    # one = test.__getitem__()  
-    # two = test.__getitem__()
+    loader = DataLoader(
+        dataset=video_dataset,
+        batch_size=128,
+        num_workers=0
+        #TODO: Test multiple workers (local issue?)
+    )
 
-    for i in range(5):
-        data = test.__getitem__()
-        frames = data[0].numpy()
-        annotations = data[1]
-        print(annotations[0][1].item())
-        for idx, frame in enumerate(frames):
-            print((annotations[idx][1].item(), annotations[idx][2].item()))
-            image_with_annotation = cv2.circle(
-                frame,
-                (int(annotations[idx][1].item()), int(annotations[idx][2].item())), 
-                radius=10,
-                color=(255, 0, 0),
+    for batch in islice(loader, 10):
+        frames = batch[0]
+        annotations = batch[1]
+        for frame, annotation in zip(frames, annotations):
+            frame_with_annotation = cv2.circle(
+                img=frame.numpy(),
+                center=(int(annotation[1].item()), int(annotation[2].item())),
+                radius=5,
+                color=(255,0,0),
                 thickness=-1
             )
-
-            cv2.imshow("pinball", cv2.cvtColor(image_with_annotation, cv2.COLOR_BGR2RGB))
+            cv2.imshow("pinball", frame_with_annotation)   
             cv2.waitKey(1)
 
-       
-    x = [1, 2 , 3, 4]
-    print(x[:-1])
+      
