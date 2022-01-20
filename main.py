@@ -1,10 +1,12 @@
-
-from __future__ import annotations
+import psutil
 from cProfile import label
 from distutils.util import subst_vars
 from inspect import isclass
 from pydoc import resolve
 from sqlite3 import DatabaseError
+
+from scipy.fft import dst
+from typeguard import sys
 from VideoDataset import VideoDataset
 from VideoFrameDataset import VideoFrameDataset
 from torch.utils.data import DataLoader
@@ -15,7 +17,7 @@ from pathlib import Path
 import numpy as np
 import requests
 import cv2
-
+import torch
 import config
 
 def access_labelbox_project(api_key, project_id):
@@ -58,7 +60,7 @@ def fetch_annotations(labelbox_project, video_file):
 if __name__ == "__main__":
     # Grabs video and annotation data from Labelbox
     labelbox_project = access_labelbox_project(api_key=config.LABELBOX_API_KEY, project_id=config.LABELBOX_PROJECT_ID)
-    download_video_data(labelbox_project=labelbox_project, save_path=config.VIDEO_PATH)
+    # download_video_data(labelbox_project=labelbox_project, save_path=config.VIDEO_PATH)
     annotations = fetch_annotations(labelbox_project, config.VIDEO_PATH)
 
     video_dataset = VideoDataset(
@@ -68,23 +70,27 @@ if __name__ == "__main__":
 
     loader = DataLoader(
         dataset=video_dataset,
-        batch_size=128,
+        batch_size=512,
         num_workers=0
         #TODO: Test multiple workers (local issue?)
     )
 
-    for batch in islice(loader, 10):
-        frames = batch[0]
-        annotations = batch[1]
-        for frame, annotation in zip(frames, annotations):
-            frame_with_annotation = cv2.circle(
-                img=frame.numpy(),
-                center=(int(annotation[1].item()), int(annotation[2].item())),
-                radius=5,
-                color=(255,0,0),
-                thickness=-1
-            )
-            cv2.imshow("pinball", frame_with_annotation)   
-            cv2.waitKey(1)
+    for frames, annotations in islice(loader, 1):
+        print(psutil.virtual_memory().percent)
+
+
+        print(sys.getsizeof(frames.numpy()))
+        exit
+        # for frame, annotation in zip(frames, annotations):
+        #     cv2.circle(
+        #         img=frame.numpy(),
+        #         center=(int(annotation[1].item()), int(annotation[2].item())),
+        #         radius=5,
+        #         color=(255,0,0),
+        #         thickness=-1,
+        #         dst=frame
+        #     )
+        #     cv2.imshow("pinball", frame)   
+        #     cv2.waitKey(1)
 
       

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from concurrent.futures import process
 from pathlib import Path
 from itertools import cycle, islice
 from torch.utils.data import IterableDataset
@@ -19,10 +20,10 @@ class VideoDataset(IterableDataset):
 		self.annotations_array = annotations_array
 
 	def __iter__(self):
-		return self.get_stream(self.video_stream, self.annotations_array)
+		return self.process_data(self.video_stream, self.annotations_array)
 	
-	def get_stream(self, video_stream, annotations_array):
-		return cycle(self.process_data(video_stream, annotations_array))
+	# def get_stream(self, video_stream, annotations_array):
+	# 	return cycle(self.process_data(video_stream, annotations_array))
 
 	def process_data(self, video_stream, annotations_array):
 		for idx in range(self.total_frame_count):
