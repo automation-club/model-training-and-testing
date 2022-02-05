@@ -1,72 +1,26 @@
-from concurrent.futures import process
-from multiprocessing import get_start_method
-
-from typeguard import gc
-import config
-from imutils.video import VideoStream, FileVideoStream
+import sys
 import cv2
-from itertools import cycle, islice
-from torch.utils.data import IterableDataset, DataLoader
-import torch, psutil
+from pytorchvideo.data.encoded_video import EncodedVideo
 
-class TestClass(IterableDataset):
-    def __init__(self) -> None:
-        super().__init__()
+x = [1,2,3,4,5,6,7,8,9,10]
+print(x[0:5])
+encoded_vid = EncodedVideo.from_path('./datasets/test-vid.mp4')
+data = encoded_vid.get_clip(0,1)
+print(data['video'].shape)
+print(sys.getsizeof(data['video']))
+print('done')
+# cap = cv2.VideoCapture('./datasets/test-vid.mp4')
 
-    def process_data(self):
-        for idx in range(540):
-            yield torch.rand((1920,1080, 3))
-
-    def get_stream(self):
-        return cycle(self.process_data())
-
-    def __iter__(self):
-        # worker_total_num = torch.utils.data.get_worker_info().num_workers
-        # worker_id = torch.utils.data.get_worker_info().id
-        return self.process_data()
+# success, frame = cap.read()
+# count = 1
 
 
-              
-
-testclass = TestClass()
-
-loader = DataLoader(testclass, batch_size=100, num_workers=0)
-
-for batch in islice(loader, 10):
-    print(psutil.virtual_memory().percent)
-    print(batch.shape)
-
-    # for i in range(14200):
-    #     frame = vid.read()
-    #     cv2.imshow("test", frame)
-
-    #     cv2.waitKey(1)
-
-# class Sus(IterableDataset):
+# while success:
+#     cv2.imwrite(f'./data/test-vid/{count:05d}.jpg', frame)
     
-#     def __init__(self) -> None:
-#         super(Sus, self).__init__()
-#         self.vid = FileVideoStream(config.VIDEO_PATH).start()
-#         self.cap = cv2.VideoCapture(config.VIDEO_PATH)
-#         self.frame_count = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
-#     def __iter__(self):
-#         return self.get_stream(self.vid)
+#     success, frame = cap.read()
+#     count += 1
 
-#     def get_stream(self,vid_stream):
-#         return cycle(self.process(vid_stream))
+#     if count % 100 == 0:
+#         print(f'{count} frames processed')
 
-#     def process(self, vid):
-#         for i in range(self.frame_count):
-#             yield vid.read()
-
-# data = Sus()
-# loader = DataLoader(data, batch_size=100)
-
-# i = 1
-
-
-# for batch in loader:
-#     frames = batch
-#     for frame in frames:
-#         cv2.imshow("test", cv2.cvtColor(frame.numpy(), cv2.COLOR_BGR2RGB))   
-#         cv2.waitKey(1)

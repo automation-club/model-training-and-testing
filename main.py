@@ -1,3 +1,5 @@
+from json import load
+from matplotlib import pyplot as plt
 import psutil
 from cProfile import label
 from distutils.util import subst_vars
@@ -56,6 +58,10 @@ def fetch_annotations(labelbox_project, video_file):
     # print(type(labelbox_project.annotations[0]))
     return annotations_array
     
+def dim(a):
+    if not type(a) == list:
+        return []
+    return [len(a)] + dim(a[0])
 
 if __name__ == "__main__":
     # Grabs video and annotation data from Labelbox
@@ -70,27 +76,27 @@ if __name__ == "__main__":
 
     loader = DataLoader(
         dataset=video_dataset,
-        batch_size=512,
-        num_workers=0
+        batch_size=1,
+        num_workers=1
         #TODO: Test multiple workers (local issue?)
     )
 
-    for frames, annotations in islice(loader, 1):
+    for i, (frames, annotations) in enumerate(loader):
         print(psutil.virtual_memory().percent)
-
-
-        print(sys.getsizeof(frames.numpy()))
-        exit
-        # for frame, annotation in zip(frames, annotations):
-        #     cv2.circle(
-        #         img=frame.numpy(),
-        #         center=(int(annotation[1].item()), int(annotation[2].item())),
-        #         radius=5,
-        #         color=(255,0,0),
-        #         thickness=-1,
-        #         dst=frame
-        #     )
-        #     cv2.imshow("pinball", frame)   
-        #     cv2.waitKey(1)
+        frames = frames.type(torch.ByteTensor)
+        frames = frames[0].permute(1,2,3,0)
+        print(annotations.shape)
+        for frame, annotation in zip(frames, annotations[0]):
+            frame = np.ascontiguousarray(frame.numpy())
+            frame = cv2.circle(
+                img=frame,
+                center=(int(annotation[1].item()), int(annotation[2].item())),
+                radius=5,
+                color=(255,0,0),
+                thickness=-1,
+            )
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            cv2.imshow("pinball", frame)   
+            cv2.waitKey(1)
 
       
