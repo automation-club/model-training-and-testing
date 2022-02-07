@@ -1,26 +1,40 @@
-from locale import CRNCYSTR
 import sys
+import time
 import cv2
-from pydantic import DecimalIsNotFiniteError
 import torch
 import numpy as np
-
+def order_points_old(pts):
+    pts = np.array(pts)
+	# initialize a list of coordinates that will be ordered
+	# such that the first entry in the list is the top-left,
+	# the second entry is the top-right, the third is the
+	# bottom-right, and the fourth is the bottom-left
+    rect = np.zeros((4, 2), dtype="float32")
+	# the top-left point will have the smallest sum, whereas
+	# the bottom-right point will have the largest sum
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+    # now, compute the difference between the points, the
+    # top-right point will have the smallest difference,
+    # whereas the bottom-left will have the largest difference
+    diff = np.diff(pts, axis=1)
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+    # return the ordered coordinates
+    return rect
 def crop_frame(frame, from_coords):
-    from_ = np.array([
-        [from_coords[0][0], from_coords[0][1]],
-        [from_coords[1][0], from_coords[0][1]],
-        [from_coords[0][0], from_coords[1][1]],
-        [from_coords[1][0], from_coords[1][1]],
-    ])
+    from_coords = np.array(order_points_old(from_coords), np.float32)
+
     to_coords = np.array([
         [0,0],
-        [frame.shape[0],0],
-        [0, frame.shape[1]],
-        [frame.shape[0], frame.shape[1]],
-    ])
+        [frame.shape[1],0],
+        [frame.shape[1], frame.shape[0]],
+        [0, frame.shape[0]],
+    ], np.float32)
 
-    trans = cv2.getPerspectiveTransform(from_, to_coords)
-    return cv2.warpPerspective(frame, trans, (frame.shape[0], frame.shape[1]))
+    trans = cv2.getPerspectiveTransform(from_coords, to_coords)
+    return cv2.warpPerspective(frame, trans, (frame.shape[1], frame.shape[0]))
 
 def get_2_with_largest_area(coords):
     largest = 0
@@ -37,36 +51,45 @@ def get_2_with_largest_area(coords):
     return coord1, coord2
 
 def detect_corner_rectangles(frame):
+
+    
     # Thresholding to extract colors of the tape
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
+    # Split frame into two parts to analyze
+    sections = np.hsplit(hsv, 2)
+    bottom, top = sections[0], sections[1]
+
     y_low = np.array([20, 130, 130])
     y_high = np.array([30,255,255])
-    y_mask = cv2.inRange(hsv, y_low, y_high)
+    y_mask = cv2.inRange(top, y_low, y_high)
 
-    b_low = np.array([100, 50, 20])
+    b_low = np.array([100, 140, 20])
     b_high = np.array([130, 255, 255])
-    b_mask = cv2.inRange(hsv, b_low, b_high)
+    b_mask = cv2.inRange(bottom, b_low, b_high)
 
-    mask = cv2.bitwise_or(y_mask, b_mask)
+    mask = np.hstack((b_mask, y_mask))
+    # mask = cv2.bitwise_or(y_mask, b_mask)
     extracted = cv2.bitwise_and(frame, frame, mask=mask)
 
     # Finding tape contours
+    # cv2.imshow('test', extracted)
+    # cv2.waitKey(0)
     extracted = cv2.cvtColor(extracted, cv2.COLOR_BGR2GRAY)
     cnts,_ = cv2.findContours(extracted, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     coords = []
     for c in cnts:
         area = cv2.contourArea(c)
         perim = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.11*perim, True)
+        approx = cv2.approxPolyDP(c, 0.1*perim, True)
 
-        if (area >120 and area <250) and len(approx)==4:
+        if (area > 55 and area <250) and len(approx)==4:
             m = cv2.moments(c)
             x = int(m["m10"]/m["m00"])
             y = int(m["m01"]/m["m00"])
-            cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+            # cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
             coords.append([x,y])
-    return frame, coords   
+    return coords   
 
  
 
@@ -77,14 +100,32 @@ def detect_corner_rectangles(frame):
 # imgs = ['/home/owhan/Downloads/homeless.jpg']  # batch of images
 cap = cv2.VideoCapture('./datasets/test-vid.mp4')
 
+coords = np.array([[0,0],[0,1920],[1080,0],[1080,1920]])
+runs = 0
+new_time = 0
+prev_time = time.time()
 while True:
     ok, frame = cap.read()
+    if runs % 20 == 0:
+        new_coords = detect_corner_rectangles(frame)
+        if len(new_coords) == 4:
+            coords = new_coords
+    
+    for coord in coords:
+        cv2.circle(frame, (coord[0], coord[1]), 8, (0,255,0), -1)
+    runs+=1
 
-    frame, coords = detect_corner_rectangles(frame)
-    coord1, coord2 = get_2_with_largest_area(coords) 
-    print(coord1)
-    frame = crop_frame(frame, (coord1, coord2))
-    cv2.imshow("test", frame)
+    warped = crop_frame(frame, coords)
+
+    new_time = time.time()
+    fps = str(int(1.0/(new_time-prev_time)))
+    prev_time = new_time
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    cv2.putText(warped, "fps: "+fps, (50, 50), font, 2, (255,0,255), 3, cv2.LINE_AA)
+
+
+    cv2.imshow("detections", frame)
+    cv2.imshow("warped", warped)
     cv2.waitKey(1)
 
 cv2.imshow("test", frame)
