@@ -1,5 +1,7 @@
+from bisect import bisect
 import sys
 import time
+from tkinter import Y
 import cv2
 import torch
 import numpy as np
@@ -97,23 +99,40 @@ def detect_corner_rectangles(frame):
 def ball_detection(frame, prev_frame):
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-    ball_low = np.array([0, 0, 0])
-    ball_high = np.array([255, 100, 255])
+    ball_low = np.array([40, 50, 50])
+    ball_high = np.array([70, 255, 255])
+
     ball_mask = cv2.inRange(hsv, ball_low, ball_high)
-    ball_mask = cv2.erode(ball_mask, None, iterations=2)
-    ball_mask = cv2.dilate(ball_mask, None, iterations=2)
+    ball_mask = cv2.morphologyEx(ball_mask, cv2.MORPH_OPEN, None)
 
     extracted = cv2.bitwise_and(frame, frame, mask=ball_mask)
     extracted = cv2.cvtColor(extracted, cv2.COLOR_BGR2GRAY)
+    cv2.imshow('extacted', extracted)
+    cv2.waitKey(1)
     conts = cv2.findContours(extracted, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+    new = []
     for c in conts[0]:
-        # cv2.circle(frame, (int(x),int(y)), int(r), (255,0,0), 3)
-        # area = cv2.contourArea(c)
-        # perim = cv2.arcLength(c, True)
-        # approx = cv2.approxPolyDP(c, 0.09*perim, True)
+        c = cv2.convexHull(c)
+        area = cv2.contourArea(c)
+        if area > 2000 or area < 600:
+            pass
+        else:
+            new.append(c)
+
+    for c in new:
         cv2.drawContours(frame, [c], 0, (255, 0, 0), 4)
-        # if (50 < area and area < 150) and     
+
+    # c = max(new, key=cv2.contourArea)
+    # ((x,y), r) = cv2.minEnclosingCircle(c)
+
+    # frame = cv2.circle(frame, (int(x),int(y)), int(r), (255,0,0), 3)
+    # for c in conts:
+    #     area = cv2.contourArea(c)
+    #     perim = cv2.arcLength(c, True)
+    #     approx = cv2.approxPolyDP(c, 0.05*perim, True)
+    #     k = cv2.isContourConvex(c)
+    #     if area <1800 :
+    #         cv2.drawContours(frame, [c], 0, (255, 0, 0), 4)
 
     # cv2.imshow('test', frame)
     # cv2.waitKey(0)
