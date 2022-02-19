@@ -1,6 +1,10 @@
 # Directories
 config/
 datasets/
+
+# Ignore Jetbrains files
+.idea/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
