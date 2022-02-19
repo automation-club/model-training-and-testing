@@ -1,6 +1,7 @@
 # Directories
 config/
 datasets/
+data/
 
 # Ignore Jetbrains files
 .idea/

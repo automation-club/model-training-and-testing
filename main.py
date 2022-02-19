@@ -1,20 +1,25 @@
-
-from __future__ import annotations
+from json import load
+from matplotlib import pyplot as plt
+import psutil
 from cProfile import label
 from distutils.util import subst_vars
+from inspect import isclass
 from pydoc import resolve
 from sqlite3 import DatabaseError
+
+from scipy.fft import dst
+from typeguard import sys
 from VideoDataset import VideoDataset
 from VideoFrameDataset import VideoFrameDataset
+from torch.utils.data import DataLoader
+from itertools import islice
 
-import torch
 import labelbox as lb
 from pathlib import Path
-import requests
-import torchvision
-import cv2
 import numpy as np
-
+import requests
+import cv2
+import torch
 import config
 
 def access_labelbox_project(api_key, project_id):
@@ -48,33 +53,50 @@ def fetch_annotations(labelbox_project, video_file):
     # Annotations array format - (frames, (present, x, y))
     annotations_array = np.zeros(shape=(frame_count, 3)) 
     annotations = labelbox_project.annotations
-    for idx, annotation in enumerate(annotations):
-        annotations_array[idx] = np.array([1, annotation.value.x, annotation.value.y])
+    for annotation in annotations:
+        annotations_array[annotation.frame] = np.array([1, annotation.value.x, annotation.value.y])
     # print(type(labelbox_project.annotations[0]))
     return annotations_array
     
+def dim(a):
+    if not type(a) == list:
+        return []
+    return [len(a)] + dim(a[0])
 
 if __name__ == "__main__":
     # Grabs video and annotation data from Labelbox
     labelbox_project = access_labelbox_project(api_key=config.LABELBOX_API_KEY, project_id=config.LABELBOX_PROJECT_ID)
+    # download_video_data(labelbox_project=labelbox_project, save_path=config.VIDEO_PATH)
     annotations = fetch_annotations(labelbox_project, config.VIDEO_PATH)
-    
 
-    # download_video_data(labelbox_project=labelbox_project, save_path=(DATASET_PATH/VIDEO_DATA_FILE_NAME).resolve())
-
-    test = VideoDataset(
+    video_dataset = VideoDataset(
         video_path=config.VIDEO_PATH,
-        annotations=annotations,
-        mode="include_empty_annotation_frames",
+        annotations_array=annotations,
     )
 
-    one = test.__getitem__()
-    two = test.__getitem__()
-    three = test.__getitem__()
+    loader = DataLoader(
+        dataset=video_dataset,
+        batch_size=1,
+        num_workers=1
+        #TODO: Test multiple workers (local issue?)
+    )
 
-    print(one[0].shape)
-    print(two[0].shape)
-    print(three[0].shape)
+    for i, (frames, annotations) in enumerate(loader):
+        print(psutil.virtual_memory().percent)
+        frames = frames.type(torch.ByteTensor)
+        frames = frames[0].permute(1,2,3,0)
+        print(annotations.shape)
+        for frame, annotation in zip(frames, annotations[0]):
+            frame = np.ascontiguousarray(frame.numpy())
+            frame = cv2.circle(
+                img=frame,
+                center=(int(annotation[1].item()), int(annotation[2].item())),
+                radius=5,
+                color=(255,0,0),
+                thickness=-1,
+            )
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            cv2.imshow("pinball", frame)   
+            cv2.waitKey(1)
 
-    print(one[0][0].equal(two[0][0]))
-    print(two[0][128].equal(three[0][0]))
+      
